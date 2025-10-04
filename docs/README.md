@@ -194,7 +194,7 @@ confidence: medium
 
 ## Prompts (drop into `/prompts/`)
 
-**Abstract (`prompts/abstract.md`)**
+**[Abstract] (`./prompts/abstract.md`)**
 
 ```
 Summarize into ≤150 words… [full template from earlier message]
