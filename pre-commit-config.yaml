@@ -1,0 +1,19 @@
+# Runs fast local checks + the KaC validator on every commit.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-added-large-files
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: validate-notes
+        name: Validate KaC notes + sidecars
+        entry: python validate_notes_v2.py --root ./knowledge --schema ./schema.json
+        language: system
+        pass_filenames: false     # run against the repo, not just changed files
+        always_run: true          # ensure validation even if only registries change
