@@ -1,0 +1,31 @@
+namespaces:
+- species
+- topic
+- driver
+- region
+- technique
+controlled_values:
+  species:
+  - Chamaecyparis_lawsoniana
+  - Sequoia_sempervirens
+  topic:
+  - range_change
+  - disease_dynamics
+  - succession
+  driver:
+  - fire_suppression
+  - drought
+  - pathogen
+  region:
+  - Pacific_Northwest
+  - Northern_California
+  technique:
+  - wet_in_wet
+  - glazing
+  - drybrush
+aliases:
+  species:
+    Port_Orford_cedar: Chamaecyparis_lawsoniana
+deprecated:
+  topic:
+  - legacy_term
