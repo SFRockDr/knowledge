@@ -1,4 +1,4 @@
-# Knowledge-as-Code (KaC) — Personal Notebook (GitHub + Wiki.js)
+# Knowledge-as-Code (KaC) — Personal Notebook (GitHub + Wiki.js) - p
 
 A lean, durable method for turning heterogeneous sources (PDFs, Readwise clips, videos, field notes) into **plain-text Markdown knowledge assets** with YAML metadata, typed links, and optional retrieval later. **GitHub** is the canonical store; **Wiki.js** is the online notebook view.
 
