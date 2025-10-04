@@ -1,363 +1,338 @@
-# Knowledge-as-Code Methodology
 
-*Personal Notebook Edition (Wiki.js + GitHub)*
+# Knowledge-as-Code User Guide
 
----
+**Immutable content. Evolving metadata. AI-ready.**
 
-## 1. Core Principles
+This guide documents a lean, durable system for turning heterogeneous sources (PDFs, web clips, videos, field notes) into plain-text knowledge assets with typed relations and light governance. Content lives in Markdown files; evolving metadata lives in YAML sidecars. A validator enforces structure; a compiled graph powers retrieval and AI.
 
-* **Single source of truth**: All knowledge lives as plain Markdown + YAML in a GitHub repo.
-* **Durability**: Plaintext + Git history = future-proof, portable.
-* **Simplicity over standards**: Only adopt the conventions you actually use.
-* **Two-level domain hierarchy**: Every note belongs to `/domain/subdomain/`.
-* **Provenance always**: Every note records source(s), authorship, and if/when an LLM touched it.
-* **Human oversight**: AI assists in summarization and linking, but you approve/correct.
-* **Notebook + Code**: Wiki.js is the user-friendly web notebook; GitHub is the canonical store.
+The core premise stays simple: **write once, evolve metadata, validate, rebuild graph, repeat.***
 
 ---
 
-## 2. Repository Structure
+## 1) Objectives
 
+* **Single source of truth:** GitHub repo of Markdown notes.
+* **Two-tier outputs per source:** `*_abstract.md` (≤150 words) and `*_synthesis.md` (length-flex; may exceed 1500 words).
+* **Typed relations:** centrally governed (`relations.yaml`).
+* **Per-subdomain ontologies:** controlled tag vocab, aliases, deprecations (`ontology.yaml`).
+* **Metadata outside notes:** sidecars (`<note_id>.meta.yaml`) hold tags/links/perspectives that evolve.
+* **Validation & CI:** `validate_notes_v2.py` merges note + sidecar, checks schema/ontology/relations.
+* **Compiled shadow graph:** `build_graph.py` emits `graph.jsonl` and `catalog.csv` for search/RAG/analytics.
+* **Notebook UX:** Wiki.js pulls read-only from GitHub.
+
+---
+
+## 2) Mental model (DSRP)
+
+* **Distinctions** → typed tags (`namespace:value`) defined per subdomain ontology.
+* **Systems** → stable foldering `domain/subdomain`, and `is_part_of` hierarchies (chapter→book).
+* **Relationships** → typed links (`supports`, `contrasts_with`, `is_part_of`, `causes`, `related_to`), centrally governed.
+* **Perspectives** → optional sidecar lenses (e.g., management, ecology) for filtering and analysis.
+
+---
+
+## 3) Repository layout
+
+```text
+knowledge/
+  <domain>/<subdomain>/
+    images/                             # local image assets
+    pdfs/                               # original PDFs/scans
+    YYYY-MM-DDThhmm_slug.md             # source OR abstract OR synthesis
+    YYYY-MM-DDThhmm_slug_abstract.md
+    YYYY-MM-DDThhmm_slug_synthesis.md
+    YYYY-MM-DDThhmm_slug.meta.yaml      # <-- evolving metadata (sidecar)
+    ontology.yaml                       # per-subdomain vocab (namespaces/values/aliases/deprecated)
+
+relations.yaml                           # global relation registry (+ aliases)
+schema.json                              # front-matter contract (notes only)
+validate_notes_v2.py                     # validator (merges sidecars; enforces ontology/relations)
+build_graph.py                           # compiles shadow graph (nodes/edges/perspectives)
+prompts/
+  abstract.md
+  synthesis.md
+  meta_synthesis.md
+templates/
+  TEMPLATE_abstract.md
+  TEMPLATE_synthesis.md
+docs/
+  knowledge_as_code_user_guide.md        # this document
+  METADATA_SIDECARS.md                   # sidecar spec (detailed)
+  INGEST_COOKBOOK.md                     # step-by-step ingest recipes
+  pipeline_diagram.png                   # optional visual flow (and .pdf)
 ```
-/knowledge
-  /nature/
-    /trees/
-      /images/         # images for this subdomain
-      /pdfs/           # PDFs or scans
-      2025-09-30_slug.md
-      2025-09-30_slug_abstract.md
-      2025-09-30_slug_synthesis.md
-    /fungi/
-      /images/
-      /pdfs/
-  /art/
-    /urban_sketching/
-    /watercolor_techniques/
-  /mindfulness/
-    /zazen/
-  /inbox/              # capture dropbox, unprocessed
-  /ontology.md         # global relations schema
-  /<domain>/<subdomain>/ontology.md  # local vocabularies
-  schema.json
-  validate_notes.py
+
+---
+
+## 4) Naming & IDs
+
+* **ID & filename:** `YYYY-MM-DDThhmm_slug[_suffix].md` (local time).
+
+  * Suffixes: `_abstract`, `_synthesis` (or `_metasynthesis`), optional `_z` for zettel.
+* **Domain:** always `domain/subdomain` (e.g., `nature/trees`).
+* **Slugs:** `lower-kebab-case`.
+* **Citekeys (optional):** `AuthorYearShortTitle` (e.g., `Hansen2000PortOrford`).
+
+---
+
+## 5) Note front-matter (stable content)
+
+**Minimal, required keys** (details enforced by `schema.json`):
+
+```yaml
+---
+id: 2025-10-01T0900_fire-suppression
+title: Fire suppression impacts on succession
+domain: nature/trees              # two levels
+type: source                      # source|abstract|synthesis|zettel|glossary
+tags: [topic:fire_suppression]    # 1–3 seed tags; more go in sidecar
+sources: []                       # citekeys or note IDs
+provenance:
+  created_by: human|llm|llm+human
+  model: claude-opus              # when applicable
+  prompt: synthesis-v2            # when applicable
+  date: 2025-10-01
+confidence: n/a|low|medium|high
+links:
+  supports: []                    # optional; bulk lives in sidecar
+  contrasts_with: []
+  is_part_of: []
+  causes: []
+  related_to: []
+---
+```
+
+* **`schema.json`** validates ID pattern, allowed `type`, two-level `domain`, etc.
+* Keep note front-matter **minimal**; move most tagging/linking to sidecars.
+
+---
+
+## 6) Sidecars (evolving metadata)
+
+Create a file beside any note: `YYYY-MM-DDThhmm_slug.meta.yaml`.
+
+```yaml
+id: 2025-10-01T0900_fire-suppression_synthesis
+
+tags:
+  add:    [topic:succession, driver:fire_suppression]
+  remove: []
+
+links:
+  supports:       [2025-09-30T1010_forest-dynamics-ch1_synthesis]
+  contrasts_with: []
+  is_part_of:     []
+  causes:         []
+  related_to:     []
+
+perspectives:
+  - name: management
+    notes: Prioritize prescribed burns where ladder fuels exist.
+  - name: ecology
+    notes: Successional reset intervals shift with climate.
+```
+
+**Merge rules (validator v2):**
+
+* **Final tags** = `note.tags ∪ tags.add − tags.remove`
+* **Final links** = `union(note.links, sidecar.links)` (deduped)
+
+**Why sidecars?** Notes stay immutable and calm; ontology, relations, and perspectives can evolve without rewriting content.
+
+See `/docs/METADATA_SIDECARS.md` for a deeper spec.
+
+---
+
+## 7) Relations & Ontology governance
+
+**Global relations** — `/relations.yaml` (single source of truth):
+
+```yaml
+allowed: [supports, contrasts_with, is_part_of, causes, related_to]
+aliases:
+  contradicts: contrasts_with
+  correlates_with: related_to
+display:
+  supports: "supports"
+  contrasts_with: "contrasts with"
+  is_part_of: "is part of"
+  causes: "causes"
+  related_to: "related to"
+```
+
+**Per-subdomain ontology** — `/knowledge/<domain>/<subdomain>/ontology.yaml`:
+
+```yaml
+namespaces: [species, topic, driver, region, technique]
+controlled_values:
+  species: [Chamaecyparis_lawsoniana, Sequoia_sempervirens]
+  topic: [range_change, disease_dynamics, succession]
+  driver: [fire_suppression, drought, pathogen]
+  region: [Pacific_Northwest, Northern_California]
+  technique: [wet_in_wet, glazing, drybrush]
+aliases:
+  species:
+    Port_Orford_cedar: Chamaecyparis_lawsoniana
+deprecated:
+  topic: [legacy_term]
 ```
 
 **Rules**
 
-* All notes belong to exactly one subdomain.
-* Assets live in that subdomain’s `images/` or `pdfs/`.
-* IDs use the format:
-
-  ```
-  YYYY-MM-DDThhmm_slug_suffix.md
-  ```
-
-  e.g., `2025-09-30T1033_fire-suppression_synthesis.md`.
+* Add **new relation types** in `relations.yaml` (optionally map via `aliases`).
+* Add/alias/deprecate **tag values** in local `ontology.yaml`.
+* Validator v2 enforces relations and tags after merging sidecars.
 
 ---
 
-## 3. Workflow
+## 8) Long works (books): chapters + meta-synthesis
 
-### Step 1 — Capture / Aggregate
+* Split the book into **chapter syntheses** (each with Abstract + Synthesis).
+* Create a **meta-synthesis** that integrates chapter syntheses.
 
-* Dump raw sources into `/inbox/`:
-
-  * Readwise exports (Markdown/CSV).
-  * PDFs, articles, field notes.
-  * Images (maps, sketches, figures).
-* Naming convention optional here — just get material in.
-* Move images/PDFs into `/domain/subdomain/images/` or `/pdfs/` as soon as you know where they belong.
-
----
-
-### Step 2 — Normalize
-
-### Front‑matter Contract (Required)
-
-Add this near “Normalize” so authors know exactly what’s required.
+**Chapter synthesis front-matter:**
 
 ```yaml
-# Required keys
-id: YYYY-MM-DDThhmm_slug(_abstract|_synthesis|_z)
-title: ...
-domain: <domain/subdomain>     # always 2 levels
-type: abstract|synthesis|source|glossary   # (zettel optional: zettel)
-tags: []                        # typed: namespace:value (from local ontology)
-sources: []                     # citekeys or note IDs
-provenance: {created_by: human|llm+human, model: claude-opus, prompt: <name>, date: YYYY-MM-DD}
-confidence: high|medium|low
 links:
-  supports: []                  # allowed relations (global):
-  contrasts_with: []            # supports | contrasts_with | is_part_of | causes | related_to
-  is_part_of: []
-  causes: []
-  related_to: []
+  is_part_of: [2025-09-30T1200_forest-dynamics_metasynthesis]
 ```
 
-Also see `schema.json` and `validate_notes.py` for enforcement.
+**Meta-synthesis front-matter:**
 
+```yaml
+sources:
+  - 2025-09-30T1010_forest-dynamics-ch1_synthesis
+  - 2025-09-30T1020_forest-dynamics-ch2_synthesis
+  # ...
+```
 
-### Naming & Citekeys
-
-- **IDs/filenames:** `YYYY-MM-DDThhmm_slug_suffix.md`  (suffix = `abstract|synthesis|z`).
-- **Slugs:** lower‑kebab‑case.
-- **Citekeys (suggested):** `AuthorYearShortTitle` (e.g., `Hansen2000PortOrford`).
-
-
-
-* Run a small **Pandoc wrapper script** or do it manually:
-
-  * Convert all PDFs/HTML → Markdown.
-  * Insert YAML stub:
-
-    ```yaml
-    ---
-    id: 2025-09-30T1033_slug
-    title: <source title>
-    domain: nature/trees
-    type: source
-    tags: []
-    sources: []
-    provenance:
-      created_by: human
-      imported_from: <file/url>
-      date: 2025-09-30
-    confidence: n/a
-    ---
-    ```
-  * Store normalized Markdown in the proper subdomain folder.
-  * Rewrite image references to point to local `/images/`.
-
-**Goal:** Every raw artifact has a clean, consistent Markdown representation + YAML front matter.
+Prompts for chapter/meta are in `/prompts/`.
 
 ---
 
-### Step 3 — Summarize (two levels)
+## 9) Authoring workflow
 
-### Prompts & Templates
+1. **Capture → Normalize**
 
-Provide deterministic inputs for the LLM and consistent outputs for authors:
+   * Store raw PDFs in `/knowledge/<domain>/<subdomain>/pdfs/`.
+   * Convert to Markdown (Pandoc). Extract images → `/images/`. Add minimal front-matter.
+2. **Summarize (two-tier)**
 
-```
-/prompts/
-  abstract.md
-  synthesis.md
-  meta_synthesis.md   # for books
-/templates/
-  TEMPLATE_abstract.md
-  TEMPLATE_synthesis.md
-```
-Note: *Synthesis may exceed 1,500 words when essential information warrants it.*
+   * Generate `*_abstract.md` (≤150 words) and `*_synthesis.md` (readable narrative; length-flex).
+3. **Evolve metadata (later, anytime)**
 
+   * Add tags/links/perspectives in `*.meta.yaml`.
+4. **Validate & graph**
 
-### Books: Chapter + Meta‑Synthesis Pattern
+   * `python validate_notes_v2.py --root ./knowledge --schema ./schema.json`
+   * `python build_graph.py --root ./knowledge --out ./graph`
+5. **Commit & sync**
 
-Use chapter‑level syntheses and a book‑level meta‑synthesis.
+   * GitHub is canonical. Wiki.js pulls read-only on a schedule.
 
-```yaml
-# Chapter synthesis
-links: { is_part_of: [<book_metasynthesis_id>] }
-
-# Book meta-synthesis
-sources: [<chapter_synthesis_id_1>, <chapter_synthesis_id_2>, ...]
-```
-
-
-
-Use an advanced LLM (e.g. Anthropic Claude Opus) with templates.
-
-1. **Abstract (≤150 words)**
-
-   * Short, high-level overview of the source.
-   * Filename: `slug_abstract.md`.
-
-2. **Synthesis (800–1500 words)**
-
-   * Structured analysis: context, evidence, mechanisms, implications, open questions.
-   * Filename: `slug_synthesis.md`.
-
-**Provenance**:
-
-```yaml
-provenance:
-  created_by: llm+human
-  model: claude-opus
-  prompt: synthesis-v2
-  date: 2025-09-30
-```
+See `/docs/INGEST_COOKBOOK.md` for step-by-step recipes (journal article; book; Readwise; YouTube).
 
 ---
 
-### Step 4 — Atomization (Optional Zettels)
+## 10) Prompts & Templates
 
-* You **may skip this step** if Abstract + Synthesis is enough.
-* Zettels = one idea per file (`slug_z.md`), atomic, highly linkable.
-* Pros: fine-grained graph, useful for RAG chunking.
-* Cons: overhead — may not be necessary if you’re not actively managing 10k+ notes.
+**/prompts/abstract.md** — short orientation
+**/prompts/synthesis.md** — standalone narrative (sections: Context; Core Insights; Evidence & Mechanisms; Applications & Implications; Limitations & Boundary Conditions; Uncertainties & Open Questions)
+**/prompts/meta_synthesis.md** — integrate across chapters
 
-**Recommendation**:
-
-* Start without zettels.
-* If Synthesis files get too dense, use LLM to propose zettels and extract selectively.
+**/templates/TEMPLATE_abstract.md** and **/templates/TEMPLATE_synthesis.md** mirror the front-matter and section structure for consistent outputs.
 
 ---
 
-### Evolving Metadata (No Note Edits Required)
-- Most tagging/linking happens in sidecars: `<note_id>.meta.yaml`.
-- Relations are governed by `relations.yaml` (repo root).
-- Controlled vocab & aliases live in per-subdomain `ontology.yaml`.
-- Rebuild the shadow graph anytime: `python build_graph.py --root ./knowledge --out ./graph`.
+## 11) Validation & Graph
 
+```bash
+# Validate notes + sidecars + ontology + relations
+python validate_notes_v2.py --root ./knowledge --schema ./schema.json
 
-## Validation Hooks (Automate It)
-
-**Pre-commit**
-
-```yaml
-# .pre-commit-config.yaml
-repos:
-- repo: local
-  hooks:
-  - id: validate-notes
-    name: Validate notes
-    entry: python validate_notes.py --root ./knowledge --schema ./schema.json
-    language: system
-    files: \.md$
+# Build compiled graph
+python build_graph.py --root ./knowledge --out ./graph
+# → outputs graph/graph.jsonl and graph/catalog.csv
 ```
 
-**GitHub Action**
+**Local hook:** `.pre-commit-config.yaml` runs the validator on commit.
+**CI:** `.github/workflows/validate.yml` runs on pushes/PRs.
 
-```yaml
-# .github/workflows/validate.yml
-name: validate
-on: [push, pull_request]
-jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: { python-version: '3.11' }
-      - run: pip install pyyaml jsonschema
-      - run: python validate_notes.py --root ./knowledge --schema ./schema.json
-```
+---
 
+## 12) Tools & ergonomics (optional but handy)
 
-## Wiki.js Git Sync (Minimum Setup)
+* **Makefile (repo root):**
 
-1. Deploy Wiki.js (Droplet or managed).
-2. Settings → **Git** → choose Pull‑only (GitHub remains canonical).
-3. Add repo URL + read‑only PAT.
-4. Content directory = `/` (or `/knowledge` if you mirror the path).
-5. Enable auto‑pull on a schedule (e.g., hourly).
-6. Set a default home page (e.g., `/knowledge/README`).
-
-
-## Quality Checklist (Pre‑merge)
-
-- [ ] Abstract ≤150 words and informative.
-- [ ] Synthesis contains required headings; length flexes as needed.
-- [ ] Provenance present (`created_by`, model, prompt, date).
-- [ ] Tags exist in local ontology; relations are valid; links resolve.
-- [ ] Assets under `/domain/subdomain/{images,pdfs}/` with relative paths.
-- [ ] `validate_notes.py` passes.
-
-
-## References & Aids
-
-- **Ingest Cookbook:** `INGEST_COOKBOOK.md` (PDF article, Book→chapters, Readwise, YouTube).
-- **Pipeline Diagram:** see `/docs/pipeline_diagram.png` (and `.pdf`) for the end‑to‑end flow.
-
-
-
-* **Global ontology.md** = relation types + schema.
-* **Local ontology.md** per subdomain = controlled vocab for tags (`species:`, `technique:`, `topic:`).
-* **Typed links** in YAML:
-
-  ```yaml
-  links:
-    supports: [2025-09-29T0831_fire-suppression-effects_synthesis]
-    contrasts_with: []
-    is_part_of: []
-    causes: []
-    related_to: []
+  ```makefile
+  make validate     # run validator
+  make graph        # build graph
+  make new-note DOMAIN=nature/trees TITLE="My Title" SLUG=my-title TYPE=source
   ```
-* Auto-suggest links with LLM → review and approve.
-* Validate tags/relations with `validate_notes.py`.
+* **VS Code tasks:** run Validate, Build Graph, or New Note from the UI.
+* **New note script:** `scripts/new_note.sh` stamps a new note with folders ready.
 
 ---
 
-## 4. Authoring & Notebook (Wiki.js)
+## 13) Quality checklist (pre-merge)
 
-* **Wiki.js** runs as your **online notebook**.
-* It syncs with the GitHub repo:
-
-  * Markdown is the source of truth.
-  * You can edit in Wiki.js’s UI or push/pull via Git.
-* Use Wiki.js to:
-
-  * Browse by domain/subdomain.
-  * Search.
-  * Draft new notes directly (saved as Markdown).
-
-**Benefit**: one web-accessible, backed-up master copy. No local vs. remote drift.
+* [ ] **Abstract** ≤150 words; informative.
+* [ ] **Synthesis** headings present; readable narrative; length as needed.
+* [ ] **Provenance** includes `created_by`, `model`/`prompt` when LLM used, and `date`.
+* [ ] **Tags** in note front-matter are minimal (1–3 seed); sidecar holds bulk.
+* [ ] **Relations** use allowed types; link targets exist.
+* [ ] **Assets** under `/images` and `/pdfs`; relative paths correct.
+* [ ] **Validator v2** passes; **graph** rebuilds.
 
 ---
 
-## 5. Sustainability Practices
+## 14) Migration (if coming from heavy front-matter)
 
-* **Keep it simple**:
+1. Freeze content; don’t rewrite notes.
+2. For notes with lots of tags/links, create `*.meta.yaml` and move most metadata there.
+3. Keep 1–3 seed tags in the note.
+4. Update `relations.yaml` and local `ontology.yaml` as needed.
+5. Run validator → rebuild graph → commit.
 
-  * Two-level domain hierarchy.
-  * Only the relations you use (supports, contrasts_with, is_part_of, causes, related_to).
-  * Only tags that help retrieval.
-
-* **Daily/weekly maintenance**:
-
-  * Clear `/inbox/`.
-  * Normalize new items.
-  * Run `validate_notes.py` to catch drift.
-
-* **LLM assist**:
-
-  * Use Claude Opus for Abstracts + Syntheses.
-  * Optionally for link suggestions.
-  * Always record provenance.
-
-* **Backups**:
-
-  * GitHub is canonical.
-  * Periodic repo clone/zip as extra safeguard.
+See `/docs/MIGRATION_TO_SIDECARS.md` for step-by-step instructions.
 
 ---
 
-## 6. What’s Optional
+## 15) Wiki.js (optional notebook)
 
-* **Zettels**: only if needed.
-* **Complex ontologies**: keep global relations fixed; expand local vocab slowly.
-* **Automated pipelines**: start manual, add scripts once the pattern is solid.
+* Deploy Wiki.js (Droplet/Docker).
+* Configure **Git sync pull-only** to this repo (GitHub remains canonical).
+* Set a home page and schedule periodic pulls.
+* Backups: GitHub for notes; DB snapshot for Wiki.js if you rely on its search/user state.
 
 ---
 
-## 7. Example File Set (Trees / Chamaecyparis)
+## 16) FAQ
 
+**Why sidecars instead of all metadata in front-matter?**
+To keep writing pleasant and keep ontology/relations maintainable. You can evolve metadata (and rebuild the graph) without touching note text.
+
+**Can I add new relation types later?**
+Yes—add to `relations.yaml` (optionally map alias → core). Validator enforces it.
+
+**How do I change tag vocab without editing every note?**
+Edit the per-subdomain `ontology.yaml` (add/alias/deprecate). Adjust sidecars as needed; rebuild graph.
+
+**How does AI use this?**
+Feed `graph.jsonl` (nodes/edges/perspectives) and note texts to your RAG/indexer. The graph gives structure; the notes provide content.
+
+---
+
+## 17) Quickstart commands
+
+```bash
+# 1) New note (example)
+make new-note DOMAIN=nature/trees TITLE="Fire suppression impacts" SLUG=fire-suppression-impacts TYPE=source
+
+# 2) Validate
+make validate
+
+# 3) Build graph
+make graph
 ```
-/nature/trees/
-  /images/chamaecyparis_range_map.png
-  /pdfs/zobel1985.pdf
-  2025-09-30T1033_chamaecyparis-lawsoniana.md
-  2025-09-30T1033_chamaecyparis-lawsoniana_abstract.md
-  2025-09-30T1033_chamaecyparis-lawsoniana_synthesis.md
-  ontology.md
-```
-
----
-
-## 8. Why This Works
-
-* **Scalable**: domain/subdomain keeps growth tidy.
-* **Durable**: Markdown + Git → no vendor lock-in.
-* **Flexible**: Wiki.js provides an online notebook; GitHub provides versioned master.
-* **Manageable**: validation script keeps ontology/tags clean without heavy standards.
-* **Sustainable**: simple enough to maintain; extensible if you want to add zettels, RAG pipelines, or analytics later.
 
