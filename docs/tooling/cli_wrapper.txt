@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  validate) python validate_notes_v2.py --root ./knowledge --schema ./schema.json ;;
+  graph)    python build_graph.py --root ./knowledge --out ./graph ;;
+  *)
+    echo "kac <validate|graph>"; exit 1 ;;
+esac
