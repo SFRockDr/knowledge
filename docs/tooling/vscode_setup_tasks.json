@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "KaC: Validate",
+      "type": "shell",
+      "command": "python validate_notes_v2.py --root ./knowledge --schema ./schema.json",
+      "problemMatcher": []
+    },
+    {
+      "label": "KaC: Build Graph",
+      "type": "shell",
+      "command": "python build_graph.py --root ./knowledge --out ./graph",
+      "problemMatcher": []
+    }
+  ]
+}
