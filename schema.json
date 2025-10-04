@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KaC Note Front Matter",
+  "type": "object",
+  "additionalProperties": true,
+
+  "required": ["id", "title", "type", "domain"],
+
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "YYYY-MM-DDThhmm_slug[_suffix]",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{4}_[a-z0-9-]+(?:_[a-z0-9-]+)?$"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "type": {
+      "type": "string",
+      "enum": ["source", "abstract", "synthesis", "zettel", "glossary"]
+    },
+    "domain": {
+      "type": "string",
+      "description": "Always two segments: domain/subdomain",
+      "pattern": "^[a-z0-9_-]+/[a-z0-9_-]+$"
+    },
+
+    "tags": {
+      "type": "array",
+      "description": "Typed tags; actual values validated by local ontology",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+:[A-Za-z0-9_]+$"
+      },
+      "uniqueItems": true
+    },
+
+    "links": {
+      "type": "object",
+      "description": "Typed relations to other note IDs (global set)",
+      "additionalProperties": false,
+      "properties": {
+        "supports":       { "type": "array", "items": { "type": "string" } },
+        "contrasts_with": { "type": "array", "items": { "type": "string" } },
+        "is_part_of":     { "type": "array", "items": { "type": "string" } },
+        "causes":         { "type": "array", "items": { "type": "string" } },
+        "related_to":     { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "sources": {
+      "type": "array",
+      "description": "Citekeys or note IDs used as provenance for this asset",
+      "items": { "type": "string" }
+    },
+
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "created_by": { "type": "string", "enum": ["human", "llm", "llm+human"] },
+        "model":      { "type": "string" },
+        "prompt":     { "type": "string" },
+        "date":       { "type": "string", "format": "date" },
+        "imported_from": { "type": "string" },
+        "source_url": { "type": "string", "format": "uri" },
+        "source_file": { "type": "string" }
+      }
+    },
+
+    "source_type": {
+      "type": "string",
+      "description": "Useful when type=source",
+      "enum": ["pdf", "article", "book", "video", "webpage", "transcript", "note", "other"]
+    },
+
+    "confidence": {
+      "type": "string",
+      "enum": ["high", "medium", "low", "n/a"]
+    },
+
+    "version": {
+      "description": "Increment when regenerating with newer models",
+      "oneOf": [{ "type": "integer" }, { "type": "string" }]
+    }
+  },
+
+  "allOf": [
+    {
+      "if": { "properties": { "type": { "const": "abstract" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{4}_[a-z0-9-]+_abstract$" }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "synthesis" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": {
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{4}_[a-z0-9-]+_(synthesis|metasynthesis)$"
+          }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "type": { "const": "zettel" } }, "required": ["type"] },
+      "then": {
+        "properties": {
+          "id": { "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{4}_[a-z0-9-]+_z$" }
+        }
+      }
+    }
+  ]
+}

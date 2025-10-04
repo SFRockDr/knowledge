@@ -1,0 +1,15 @@
+allowed:
+- supports
+- contrasts_with
+- is_part_of
+- causes
+- related_to
+aliases:
+  contradicts: contrasts_with
+  correlates_with: related_to
+display:
+  supports: supports
+  contrasts_with: contrasts with
+  is_part_of: is part of
+  causes: causes
+  related_to: related to
